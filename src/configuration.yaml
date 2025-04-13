@@ -5,9 +5,13 @@ RabbitMq:
   Password: guest
 
 Stream:
+  Loop: True
+  Duration: 60
+  Rate: 100
+  Exchange: StreamExample
   From: Local
   Local:
-    Destination: FolderExample
+    Source: StreamFolderExample
   S3:
     Url: Placeholder
     Bucket: Placeholder
@@ -15,9 +19,11 @@ Stream:
     Url: Placeholder
 
 Record:
+  Duration: 60
+  Exchange: RecordExample
   To: Local
   Local:
-    Destination: FolderExample
+    Destination: RecordFolderExample
   S3:
     Url: Placeholder
     Bucket: Placeholder

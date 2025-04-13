@@ -1,10 +1,9 @@
 import logging
-
+import sys
 import pika
-
 from src.base.facade import Facade
 import yaml
-
+from src.core.running_mode import running_mode
 
 class Initializer:
     def initialize_logger(self):
@@ -27,8 +26,18 @@ class Initializer:
         channel = connection.channel()
         return channel
 
+    def initialize_running_mode(self):
+        match sys.argv[1]:
+            case 'stream':
+                return running_mode.stream
+            case 'record':
+                return running_mode.record
+            case _:
+                raise Exception("Unknown running mode")
+
     def initialize(self) -> Facade:
         self.initialize_logger()
         configuration = self.initialize_configuration()
         channel = self.initialize_rabbitmq_channel(configuration['RabbitMq'])
-        return Facade(configuration=configuration, channel=channel)
+        mode = self.initialize_running_mode()
+        return Facade(configuration=configuration, channel=channel, mode=mode)
