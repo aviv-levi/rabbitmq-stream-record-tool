@@ -1,0 +1,23 @@
+RabbitMq:
+  Host: localhost
+  Port: 5672
+
+Stream:
+  From: Local
+  Local:
+    Destination: FolderExample
+  S3:
+    Url: Placeholder
+    Bucket: Placeholder
+  Redis:
+    Url: Placeholder
+
+Record:
+  To: Local
+  Local:
+    Destination: FolderExample
+  S3:
+    Url: Placeholder
+    Bucket: Placeholder
+  Redis:
+    Url: Placeholder
