@@ -1,3 +1,4 @@
+<div dir="rtl">
 # RabbitMQ Stream & Record Tool
 
 כלי צד קל להפעלה שמאפשר שידור (stream) והקלטה (record) של הודעות RabbitMQ בצורה נוחה ואינדיקטיבית, דרך קובץ קונפיגורציה פשוט.
@@ -81,8 +82,9 @@ python main.py record
 
 ## TODO
 
-- - הוספת תמיכה מלאה ב-Redis (קריאה וכתיבה)
+- הוספת תמיכה מלאה ב-Redis (קריאה וכתיבה)
 - הוספת תמיכה מלאה ב-S3 (קריאה וכתיבה)
 - הוספת מנגנוני serialization / deserialization גמישים (למשל JSON, XML, Protobuf)
 
 
+</div>
