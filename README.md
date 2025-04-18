@@ -1,17 +1,15 @@
-<div dir="rtl">
-
 # RabbitMQ Stream & Record Tool
 
-כלי צד קל להפעלה שמאפשר שידור (stream) והקלטה (record) של הודעות RabbitMQ בצורה נוחה ואינדיקטיבית, דרך קובץ קונפיגורציה פשוט.
+A lightweight and easy-to-use side project that enables streaming and recording of RabbitMQ messages using a simple, declarative configuration file.
 
-## מצבי הרצה
+## Modes of Operation
 
-הכלי מופעל בעזרת פרמטר שמציין את מצב ההרצה:
+The tool runs with a single argument that determines the mode:
 
-- `stream` – שידור הודעות מתוך תיקייה או S3 ל-Exchange בקצב וזמן מוגדרים.
-- `record` – הקלטת הודעות מ-Exchange לקבצים בתיקייה לוקאלית או S3.
+- `stream` – Reads messages from a local folder or S3 and publishes them to a RabbitMQ exchange at a defined rate and duration. Supports looping.
+- `record` – Listens to a RabbitMQ exchange using a temporary queue (auto-delete) and saves the incoming messages to a local folder or S3 for a defined duration.
 
-## קונפיגורציה לדוגמא:
+## Configuration Example
 
 ```yaml
 RabbitMq:
@@ -47,45 +45,41 @@ Record:
     Url: Placeholder
 ```
 
-## תכונות מרכזיות
+## Key Features
 
-- שידור (Stream) של הודעות JSON או קבצים:
-  - שליטה בקצב ההודעות (messages per second)
-  - הגדרת משך השידור בשניות
-  - אפשרות להריץ בלולאה (Loop)
-  - תמיכה בקבצים ממקור לוקאלי או S3
+- **Streaming** of messages (JSON files or other formats):
+  - Control message rate (messages per second)
+  - Set streaming duration in seconds
+  - Optional loop mode
+  - Support for local folders or S3 as source
 
-- הקלטה (Record) של הודעות:
-  - יצירת תור זמני (auto-delete) להאזנה
-  - שמירת ההודעות לקבצים בתיקייה לוקאלית או S3
-  - שליטה במשך ההאזנה בשניות
+- **Recording** of messages:
+  - Uses a temporary (auto-delete) queue to consume messages
+  - Saves messages to a local folder or S3
+  - Supports fixed listening duration
 
-- תמיכה ב-S3 כמקור וקובץ יעד
+- S3 support as input/output source
 
-- אפשרות עתידית לשימוש ב-Redis לניהול מצבים (checkpointing וכדומה)
+- Redis integration planned for future 
 
-## דוגמאות להרצה
+
+## Example Usage
 
 ```bash
-# שידור הודעות לפי קובץ קונפיגורציה
+# Stream messages from a local folder or S3 to a RabbitMQ exchange
 python main.py stream
 
-# הקלטת הודעות לפי קובץ קונפיגורציה
+# Record messages from a RabbitMQ exchange and save to local folder or S3
 python main.py record
 ```
 
-## שימושים אפשריים
+## Use Cases
 
-- ביצוע בדיקות עומסים (Load Testing)
-- סימולציה של מערכות זמן-אמת
-- הקלטת תעבורת הודעות לצורך דיבוג או שחזור
-
+- Load testing of message consumers or services
+- Simulating real-time systems
+- Capturing traffic for debugging or replay
 
 ## TODO
 
-- הוספת תמיכה מלאה ב-Redis (קריאה וכתיבה)
-- הוספת תמיכה מלאה ב-S3 (קריאה וכתיבה)
-- הוספת מנגנוני serialization / deserialization גמישים (למשל JSON, XML, Protobuf)
-
-
-</div>
+- Add full support for reading from and writing to S3 & Redis
+- Add serialization/deserialization support for messages (e.g., JSON, Avro, Protobuf)
