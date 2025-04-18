@@ -81,6 +81,7 @@ python main.py record
 
 ## TODO
 
+- - הוספת תמיכה מלאה ב-Redis (קריאה וכתיבה)
 - הוספת תמיכה מלאה ב-S3 (קריאה וכתיבה)
 - הוספת מנגנוני serialization / deserialization גמישים (למשל JSON, XML, Protobuf)
 
