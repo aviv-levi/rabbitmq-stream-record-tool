@@ -4,6 +4,7 @@ import threading
 import time
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 import pika
 from src.core.running_mode import running_mode
@@ -27,87 +28,73 @@ class Facade:
                 raise Exception("Unknown running mode")
 
     def _load_local_binary_files(self, path):
-        binary_files = []
-        for root, _, files in os.walk(path):
-            for filename in files:
-                file_path = os.path.join(root, filename)
-
-                try:
-                    with open(file_path, "rb") as f:
-                        binary_data = f.read()
-                        binary_files.append(binary_data)
-                except Exception as e:
-                    print(f"Failed to read {file_path}: {e}")
-        return binary_files
+        return [
+            Path(file_path).read_bytes()
+            for root, _, files in os.walk(path)
+            for file_path in [os.path.join(root, file) for file in files]
+            if os.path.isfile(file_path)
+        ]
 
     def _start_stream(self):
         logger.info("Facade start_stream")
-        binary_files = []
-        stream_configuration = self._configuration['Stream']
-        self._channel.exchange_declare(exchange=stream_configuration['Exchange'])
+        stream_conf = self._configuration['Stream']
+        self._channel.exchange_declare(exchange=stream_conf['Exchange'])
 
-        match stream_configuration['From']:
-            case 'Local':
-                local_configuration = stream_configuration['Local']
-                binary_files = self._load_local_binary_files(local_configuration['Source'])
-            case 'S3':
-                pass
-            case _:
-                raise Exception("Unknown Datasource")
+        binary_files = self._get_stream_files(stream_conf)
 
-        rate = stream_configuration['Rate']
-        duration = stream_configuration['Duration']
-        exchange = stream_configuration['Exchange']
-        loop = bool(stream_configuration['Loop'])
+        rate = stream_conf['Rate']
+        duration = stream_conf['Duration']
+        exchange = stream_conf['Exchange']
+        loop = bool(stream_conf['Loop'])
+
         sent_count = 0
-        seconds = 0
-        while seconds < duration and (loop or sent_count == 0):
-            for i in range(len(binary_files)):
+        elapsed_seconds = 0
+
+        while elapsed_seconds < duration and (loop or sent_count == 0):
+            for i, binary_data in enumerate(binary_files):
                 if sent_count % rate == 0:
                     time.sleep(1)
-                    seconds += 1
-                    if seconds == duration:
+                    elapsed_seconds += 1
+                    if elapsed_seconds == duration:
                         break
-                self._channel.basic_publish(exchange=exchange,
-                      routing_key='/',
-                      body=binary_files[i])
+                self._channel.basic_publish(
+                    exchange=exchange,
+                    routing_key='/',
+                    body=binary_data
+                )
                 sent_count += 1
+
+    def _get_stream_files(self, stream_conf):
+        match stream_conf['From']:
+            case 'Local':
+                source_path = stream_conf['Local']['Source']
+                return self._load_local_binary_files(source_path)
+            case 'S3':
+                # TODO: Implement S3 streaming support
+                return []
+            case _:
+                raise Exception("Unknown stream source")
 
     def _start_record(self):
         logger.info("Facade start_record")
-        record_configuration = self._configuration['Record']
-
+        record_conf = self._configuration['Record']
+        duration = int(record_conf['Duration'])
 
         queue_name = f'rabbitmq-stream-record-tool-{uuid.uuid4()}'
-        duration = int(record_configuration['Duration'])
         self._channel.queue_declare(queue=queue_name, exclusive=True)
-        self._channel.queue_bind(exchange=record_configuration['Exchange'], queue=queue_name, routing_key='/')
+        self._channel.queue_bind(exchange=record_conf['Exchange'], queue=queue_name, routing_key='/')
 
-        def callback(ch, method, properties, body):
-            match record_configuration['To']:
-                case 'Local':
-                    local_configuration = record_configuration['Local']
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    filename = f"{timestamp}_{uuid.uuid4()}.txt"
-                    filepath = os.path.join(local_configuration['Destination'], filename)
+        self._channel.basic_consume(
+            queue=queue_name,
+            on_message_callback=lambda ch, method, props, body: self._handle_record_message(record_conf, body),
+            auto_ack=True
+        )
 
-                    with open(filepath, 'w', encoding='utf-8') as f:
-                        f.write(body.decode())
-                case 'S3':
-                    pass
-                case _:
-                    raise Exception("Unknown Datasource")
-
-
-
-        self._channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
-
-        # Start consuming in a separate thread
         def start_consuming():
             try:
                 self._channel.start_consuming()
             except pika.exceptions.ConnectionClosedByBroker:
-                pass
+                logger.warning("Connection closed by broker")
 
         consume_thread = threading.Thread(target=start_consuming)
         consume_thread.start()
@@ -117,5 +104,25 @@ class Facade:
         self._channel.stop_consuming()
         consume_thread.join()
 
-        self._channel.queue_unbind(exchange=record_configuration['Exchange'], queue=queue_name, routing_key='/')
+        self._channel.queue_unbind(exchange=record_conf['Exchange'], queue=queue_name, routing_key='/')
         self._channel.queue_delete(queue=queue_name)
+
+    def _handle_record_message(self, record_conf, body):
+        match record_conf['To']:
+            case 'Local':
+                self._save_message_to_local(record_conf['Local']['Destination'], body)
+            case 'S3':
+                # TODO: Implement S3 upload support
+                pass
+            case _:
+                raise Exception("Unknown record destination")
+
+    def _save_message_to_local(self, destination_dir, body):
+        Path(destination_dir).mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{timestamp}_{uuid.uuid4()}.txt"
+        filepath = Path(destination_dir) / filename
+        try:
+            filepath.write_text(body.decode(), encoding='utf-8')
+        except Exception as e:
+            logger.error(f"Failed to save file {filepath}: {e}")
